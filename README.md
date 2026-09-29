@@ -1,5 +1,7 @@
 # PDF Matrix
 
+<img src="https://raw.githubusercontent.com/kushagra-arya/PDF-Matrix/refs/heads/main/image/PDF%20Matrix%20Image.png">
+
 > **Shape every document to fit the moment.**
 >
 > PDF Matrix is a privacy-first PDF workspace for the everyday jobs that usually send you hunting through five different tools. Merge, split, compress, convert, organize, and extract text from one focused interface.

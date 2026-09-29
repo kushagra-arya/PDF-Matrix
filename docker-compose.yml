@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+
+  # ── Backend ───────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: pdf-mini-backend:latest
+    container_name: pdf-mini-backend
+    ports:
+      - "8000:8000"          # optional: exposes API docs at localhost:8000/api/docs
+    environment:
+      - DEBUG=False
+      - UPLOAD_DIR=/app/uploads
+      - CORS_ORIGINS=http://localhost:3000,http://localhost
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - pdf-mini-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  # ── Frontend (nginx) ──────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Empty string → api.js uses relative paths → nginx proxies to backend
+        VITE_API_URL: ""
+    image: pdf-mini-frontend:latest
+    container_name: pdf-mini-frontend
+    ports:
+      - "3000:80"            # access the app at http://localhost:3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - pdf-mini-net
+    restart: unless-stopped
+
+volumes:
+  uploads_data:              # named volume keeps uploads across container restarts
+
+networks:
+  pdf-mini-net:
+    driver: bridge

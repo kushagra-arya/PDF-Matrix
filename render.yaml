@@ -1,0 +1,74 @@
+# Render Blueprint — deploy backend + frontend with one click.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# HOW TO DEPLOY:
+#   1. Push this repo to GitHub / GitLab.
+#   2. Go to https://dashboard.render.com → New → Blueprint Instance.
+#   3. Connect your repo — Render will detect this file automatically.
+#   4. Click "Apply" — both services will be created and deployed.
+#
+# URLS (replace <name> with the service name below if you change them):
+#   Frontend : https://pdf-mini-frontend.onrender.com
+#   Backend  : https://pdf-mini-backend.onrender.com
+#
+# FREE TIER NOTE:
+#   Persistent disk (uploads/) requires a paid plan.
+#   On the free tier, uploaded files are ephemeral and lost on restart.
+#   For a tool that processes files on the fly (upload → process → download),
+#   this is acceptable. Remove the `disk:` block to use the free tier.
+
+services:
+
+  # ── Backend (Docker Web Service) ──────────────────────────────────────────
+  - type: web
+    name: pdf-mini-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Render checks this path to determine service health before routing traffic
+    healthCheckPath: /health
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: UPLOAD_DIR
+        value: /app/uploads
+      # Render resolves the frontend hostname and injects it here at deploy time.
+      # config.py normalises bare hostnames → https:// so CORS works correctly.
+      - key: CORS_ORIGINS
+        fromService:
+          name: pdf-mini-frontend
+          type: web
+          property: host
+    # Persistent disk — keeps uploads across restarts / deploys.
+    # Requires a paid Render plan. Comment out to run on the free tier.
+    disk:
+      name: pdf-mini-uploads
+      mountPath: /app/uploads
+      sizeGB: 1
+
+  # ── Frontend (Static Site) ────────────────────────────────────────────────
+  - type: web
+    name: pdf-mini-frontend
+    runtime: static
+    # Render runs the build from this subdirectory
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    # SPA catch-all: unknown paths serve index.html (React Router)
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      # Prevent browsers from caching the HTML shell so deploys are instant
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+    envVars:
+      # Render injects the backend hostname (e.g. pdf-mini-backend.onrender.com).
+      # api.js detects no scheme and prepends https:// automatically.
+      - key: VITE_API_URL
+        fromService:
+          name: pdf-mini-backend
+          type: web
+          property: host
